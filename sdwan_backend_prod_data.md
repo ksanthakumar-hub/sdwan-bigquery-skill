@@ -39,12 +39,42 @@ Provide at minimum: **tenant_id**, **time range**, and a specific question. Site
 
 | Field | Value |
 |---|---|
-| Project | `pa-sase-insights-prod-01` |
-| Dataset | `sdwan_dataset` |
+| Dataset | `sdwan_dataset` (same name in all regions) |
 | Auth | Application Default Credentials (`gcloud`) |
 | API | BigQuery REST API v2 |
 
-> To use a **different project or dataset**, specify it in your request: _"use project `my-project`, dataset `my_dataset`"_
+**Default project:** `pa-sase-insights-prod-01` (US)
+
+### Regional projects
+
+Specify the region in your request: _"use region sg"_ or _"use project pa-sase-insights-sg-prod-01"_
+
+| Region Code | Project ID | Location |
+|---|---|---|
+| (default) | `pa-sase-insights-prod-01` | United States |
+| `ae` | `pa-sase-insights-ae-prod-01` | UAE |
+| `au` | `pa-sase-insights-au-prod-01` | Australia |
+| `br` | `pa-sase-insights-br-prod-01` | Brazil |
+| `ca` | `pa-sase-insights-ca-prod-01` | Canada |
+| `ch` | `pa-sase-insights-ch-prod-01` | Switzerland |
+| `cn` | `pa-sase-insights-cn-prod-01` | China |
+| `de` | `pa-sase-insights-de-prod-01` | Germany |
+| `es` | `pa-sase-insights-es-prod-01` | Spain |
+| `eu` | `pa-sase-insights-eu-prod-01` | Europe (general) |
+| `fr` | `pa-sase-insights-fr-prod-01` | France |
+| `id` | `pa-sase-insights-id-prod-01` | Indonesia |
+| `il` | `pa-sase-insights-il-prod-01` | Israel |
+| `in` | `pa-sase-insights-in-prod-01` | India |
+| `it` | `pa-sase-insights-it-prod-01` | Italy |
+| `jp` | `pa-sase-insights-jp-prod-01` | Japan |
+| `kr` | `pa-sase-insights-kr-prod-01` | South Korea |
+| `pl` | `pa-sase-insights-pl-prod-01` | Poland |
+| `qa` | `pa-sase-insights-qa-prod-01` | Qatar |
+| `sa` | `pa-sase-insights-sa-prod-01` | Saudi Arabia |
+| `sg` | `pa-sase-insights-sg-prod-01` | Singapore |
+| `tw` | `pa-sase-insights-tw-prod-01` | Taiwan |
+| `uk` | `pa-sase-insights-uk-prod-01` | United Kingdom |
+| `za` | `pa-sase-insights-za-prod-01` | South Africa |
 
 ---
 
