@@ -145,9 +145,11 @@ td:nth-child(3),td:nth-child(6),td:nth-child(7){text-align:right}
     <h3>SW Version Distribution — Customer Fleet Top 15</h3>
     <canvas id="verChart"></canvas>
   </div>
-  <div class="card">
-    <h3>Events by Severity — Top Customers (30d)</h3>
-    <canvas id="evtChart"></canvas>
+  <div class="card" style="display:flex;flex-direction:column;gap:0">
+    <h3 style="margin-bottom:4px">Daily Incident Volume (30d)</h3>
+    <canvas id="incDailyChart" style="max-height:140px"></canvas>
+    <h3 style="margin:14px 0 4px">Top 10 Incident Codes (30d)</h3>
+    <canvas id="incTop10Chart" style="max-height:180px"></canvas>
   </div>
   <div class="card">
     <h3>Connectivity % — Top 20 Customers</h3>
@@ -266,16 +268,50 @@ new Chart(document.getElementById('verChart'), {
              y:{ticks:{color:'#7dd3fc',font:{size:9,family:'monospace'}},grid:{display:false}}}}
 });
 
-new Chart(document.getElementById('evtChart'), {
+new Chart(document.getElementById('incDailyChart'), {
+  type:'line',
+  data:{
+    labels:["05-04", "05-05", "05-06", "05-07", "05-08", "05-09", "05-10", "05-11", "05-12", "05-13", "05-14", "05-15", "05-16", "05-17", "05-18", "05-19", "05-20", "05-21", "05-22", "05-23", "05-24", "05-25", "05-26", "05-27", "05-28", "05-29", "05-30", "05-31", "06-01", "06-02", "06-03"],
+    datasets:[{
+      label:'Total Incidents',
+      data:[134976, 1463627, 1409139, 1353038, 1476251, 1177975, 1241332, 1311046, 1449477, 1425350, 1465977, 1396753, 1125460, 1196168, 1339899, 1309315, 1411565, 1399709, 1417657, 1218902, 1142256, 1228640, 1301211, 1391973, 1468369, 1448519, 1171942, 1078155, 1281741, 1334896, 1311721],
+      borderColor:'#6366f1',
+      backgroundColor:'rgba(99,102,241,0.15)',
+      fill:true,
+      tension:0.3,
+      pointRadius:2,
+      borderWidth:2
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toLocaleString()+' incidents'}}},
+    scales:{
+      x:{ticks:{color:'#64748b',font:{size:8},maxRotation:45},grid:{color:'#0f172a'}},
+      y:{ticks:{color:'#64748b',font:{size:9},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v},grid:{color:'#334155'}}
+    }
+  }
+});
+new Chart(document.getElementById('incTop10Chart'), {
   type:'bar',
-  data:{labels:["Chipotle Mexican Gri", "RaceTrac-137947", "Raymond James Financ", "American Food & Vend", "ESSALUD-SDWAN", "Les Schwab Tire Cent", "Penn State Universit", "Old Republic Title C", "Sanofi S.A", "NBC-Production"],datasets:[
-    {label:'Critical',data:[4913, 0, 0, 0, 0, 0, 0, 0, 7645, 7186], backgroundColor:'#ef4444',borderRadius:3},
-    {label:'Major',   data:[9034867, 0, 0, 0, 0, 0, 0, 0, 6392980, 1674812],backgroundColor:'#f97316',borderRadius:3},
-    {label:'Minor',   data:[3576646, 0, 0, 0, 0, 0, 0, 0, 1368887, 904076],backgroundColor:'#f59e0b',borderRadius:3}
-  ]},
-  options:{responsive:true,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}},
-    scales:{x:{stacked:true,ticks:{color:'#64748b',font:{size:9},maxRotation:30},grid:{color:'#0f172a'}},
-             y:{stacked:true,ticks:{color:'#64748b',font:{size:10}},grid:{color:'#334155'}}}}
+  data:{
+    labels:["Secure Fabric Link Degraded", "Secure Fabric Link Down", "Cluster Degraded", "BGP Peer Down", "Site Connectivity degraded", "Cluster Down", "Interface Down", "Direct Internet Reachability Down", "Application Probe Disabled", "Private Wan Reachability Down"],
+    datasets:[{
+      label:'Incidents (30d)',
+      data:[12734403, 9092380, 5590079, 4146424, 3347150, 2189094, 1740146, 341326, 333805, 51842],
+      backgroundColor:["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#3b82f6", "#60a5fa", "#93c5fd", "#f97316", "#fb923c", "#fbbf24"],
+      borderRadius:4
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.x.toLocaleString()+' incidents'}}},
+    scales:{
+      x:{ticks:{color:'#64748b',font:{size:9},callback:v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v},grid:{color:'#334155'}},
+      y:{ticks:{color:'#e2e8f0',font:{size:9}},grid:{color:'#0f172a'}}
+    }
+  }
 });
 
 new Chart(document.getElementById('connChart'), {
@@ -557,7 +593,8 @@ async function sendChat() {
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error?.message || 'API error ' + resp.status);
+      const msg = err.error?.message || JSON.stringify(err) || ('API error ' + resp.status);
+      throw new Error('Anthropic ' + resp.status + ': ' + msg);
     }
 
     const data = await resp.json();
@@ -604,8 +641,12 @@ applyFilters();
     <span id="chat-ctx-label">No tenant selected</span>
     <button id="chat-close" onclick="toggleChat()">✕</button>
   </div>
-  <div id="chat-apikey-bar">
-    <input type="password" id="chat-apikey" placeholder="Paste Anthropic API key (sk-ant-...)" />
+  <div id="chat-apikey-bar" style="flex-direction:column;gap:4px">
+    <div style="display:flex;gap:6px">
+      <input type="text" id="chat-apikey" placeholder="Paste Anthropic API key (sk-ant-...)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <button onclick="(()=>{const i=document.getElementById('chat-apikey');i.type=i.type==='text'?'password':'text';this.textContent=i.type==='text'?'Hide':'Show'})()" style="background:#0f172a;border:1px solid #334155;color:#94a3b8;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:10px;flex-shrink:0">Hide</button>
+    </div>
+    <div id="chat-apikey-hint" style="font-size:10px;color:#475569;padding:0 2px">Key is sent only to your Ubuntu proxy at 10.9.224.231:8081 — not stored.</div>
   </div>
   <div id="chat-tenant-select">
     <select id="chat-tenant-dd" onchange="setChatTenant(this.value)">
