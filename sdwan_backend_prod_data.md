@@ -85,59 +85,219 @@ PYEOF
 
 ## Key tables and their purpose
 
-### Flow & Traffic
+> Total: 286 tables in `sdwan_dataset`. ~130 are customer-useful; the rest are internal ingestion, duplicates, or system-only. Only customer-useful tables are listed below.
+
+### Traffic & Flow Analysis
 
 | Table | Description |
 |---|---|
-| `flow_stats_view` | Enriched flow records with app name, site name, path IDs, src/dst IPs, ports, bytes |
-| `flow_stats` | Raw flow stats (no enrichment) |
-| `app_stats_view` | Per-app aggregated traffic (bytes, packets) by site/tenant |
-| `app_stats` | Raw per-app stats |
-| `interface_stats_view` | Per-interface traffic stats |
-| `bandwidth_stats` | WAN bandwidth utilization |
-| `agg_bw_stats` | Aggregated bandwidth (5-min buckets, partitioned by `event_time`) |
-| `agg_bw_stats_daily` | Daily aggregated bandwidth |
+| `flow_stats_view` | Enriched flows — app name, src/dst IP, ports, path, bytes per flow |
+| `flow_stats` | Raw flow records |
+| `entity_flow_stats_view` | Flow stats scoped to named entities/users |
+| `flow_control_stats` | Flow control actions and enforcement |
+| `flow_control_active_stats` | Currently active flow control entries |
+| `probe_flow_stats` | Probe-based synthetic flow measurements |
+| `app_prefix_stats` | Traffic stats broken down by IP prefix + app |
 
-### Health & Quality
-
-| Table | Description |
-|---|---|
-| `lqm_stats_view` | Link quality metrics (latency, loss, jitter) |
-| `site_health_data_*_agg_*` | Site health rollups (5-min, 1-hour, 1-day) sharded 0–4 |
-| `link_health_data_*_agg_*` | Link health rollups sharded 0–4 |
-| `app_summary_stats_health_data_*` | App-level health sharded 0–4 |
-
-### Events & Alerts
+### Application Performance
 
 | Table | Description |
 |---|---|
-| `events` | All SD-WAN events (link up/down, policy changes, etc.) |
-| `events_count` | Summarized event counts |
-| `sdwan_alerts_view` | Active alerts view |
-| `sdwan_incidents_view` | Active incidents view |
+| `app_stats_view` | Enriched per-app traffic (bytes, packets) by site |
+| `app_stats_enriched` | App stats with additional context fields |
+| `app_stats_site_agg_five_minute_mv` | 5-min aggregated app traffic per site |
+| `app_stats_site_agg_hourly_mv` | Hourly aggregated app traffic per site |
+| `app_stats_tenant_agg_five_minute_mv` | 5-min aggregated app traffic tenant-wide |
+| `app_stats_tenant_agg_hourly_mv` | Hourly aggregated app traffic tenant-wide |
+| `app_summary_stats_view` | App-level summary health rollup view |
+| `mv_app_stats_topn_tenant_daily` | Daily top-N apps by tenant |
+| `mv_app_summary_stats_app_hs_daily` | Daily app health score summary |
+| `carrier_app_stats_view` | App stats broken down by WAN carrier |
 
-### Configuration / Dimension (DO tables)
+### Bandwidth & Circuits
 
 | Table | Description |
 |---|---|
-| `sitedo` | Site configuration (name, address, coordinates) |
-| `elementdo` | ION device configuration |
-| `interfacedo` | Interface configuration |
-| `waninterfacedo` | WAN interface configuration |
+| `agg_bw_stats` | 5-min aggregated WAN bandwidth per interface (partitioned by `event_time`) |
+| `agg_bw_stats_daily` | Daily aggregated WAN bandwidth |
+| `bandwidth_stats` | Raw WAN bandwidth utilization |
+| `sdwan_circuit_hourly_summary` | Per-circuit hourly utilization summary |
+| `sdwan_circuit_daily_summary` | Per-circuit daily utilization summary |
+| `carrier_interface_stats_view` | Interface stats grouped by carrier |
+
+### Link Quality (Latency, Loss, Jitter)
+
+| Table | Description |
+|---|---|
+| `lqm_stats_view` | Link quality metrics — latency, loss, jitter (enriched) |
+| `lqm_stats` | Raw LQM stats |
+| `synthetic_probe_stats` | Synthetic test results for proactive path quality monitoring |
+
+### Site & Link Health Rollups
+
+> All health tables are sharded 0–4. Query all shards with `UNION ALL` or filter by shard.
+
+| Table | Description |
+|---|---|
+| `site_health_data_five_min_agg_[0-4]` | Site health score — 5-min buckets |
+| `site_health_data_one_hour_agg_[0-4]` | Site health score — hourly rollup |
+| `site_health_data_one_day_agg_[0-4]` | Site health score — daily rollup |
+| `link_health_data_five_min_agg_[0-4]` | Link health — 5-min buckets |
+| `link_health_data_one_hour_agg_[0-4]` | Link health — hourly rollup |
+| `link_health_data_one_day_agg_[0-4]` | Link health — daily rollup |
+| `app_summary_stats_health_data_five_min_agg_[0-4]` | App health — 5-min buckets |
+| `app_summary_stats_health_data_one_hour_agg_[0-4]` | App health — hourly rollup |
+| `app_summary_stats_health_data_one_day_agg_[0-4]` | App health — daily rollup |
+
+### Events, Alerts & Incidents
+
+| Table | Description |
+|---|---|
+| `events` | All SD-WAN events (link up/down, policy change, failover, etc.) |
+| `events_count` | Summarized event counts by type/severity |
+| `sdwan_alerts_view` | Active alerts |
+| `sdwan_incidents_view` | Active incidents with severity and category (filter by `tenant_service_group`, not `tenant_id`) |
+| `flatten_site_sdwan_alerts_view` | Alerts flattened per-site (easier to join with sitedo) |
+| `flatten_site_sdwan_incidents_view` | Incidents flattened per-site |
+| `connection_status` | ION device connectivity status |
+
+### Interface & WAN
+
+| Table | Description |
+|---|---|
+| `interface_stats_view` | Per-interface traffic and error stats (enriched) |
+| `interface_stats_enriched` | Interface stats with additional context |
+| `lacp_stats` | LACP bonding stats for LAG interfaces |
+| `lldp_stats` | LLDP neighbor discovery data |
+| `poe_stats` | PoE power delivery stats |
+| `poe_interface_stats` | Per-port PoE stats |
+| `stp_stats` | Spanning Tree Protocol stats |
+| `stp_interface_stats` | Per-interface STP state |
+
+### VPN & Tunnels
+
+| Table | Description |
+|---|---|
+| `vpn_summary_stats` | VPN tunnel health and throughput summary |
+| `vpn_data_tunnel_stats` | Data plane tunnel statistics |
+| `vpn_control_tunnel_stats` | Control plane tunnel statistics |
+| `vpn_global_error_stats` | VPN error counters |
+
+### Cellular / Mobile WAN
+
+| Table | Description |
+|---|---|
+| `cellular_stats` | Cellular modem signal, data rate, carrier stats |
+| `cellular_apn_stats` | Per-APN cellular traffic stats |
+| `cellular_apn_v6_stats` | IPv6 cellular APN stats |
+
+### Routing
+
+| Table | Description |
+|---|---|
+| `route_stats` | Route table change events and prefix counts |
+| `ospf_stats` | OSPF protocol stats and neighbor state |
+| `multicast_stats` | Multicast group membership and forwarding |
+| `multicast_route_stats` | Multicast routing table stats |
+| `multicast_control_stats` | Multicast control plane events |
+
+### Device Health (ION)
+
+| Table | Description |
+|---|---|
+| `cpu_stats_view` | ION CPU utilization (enriched) |
+| `memory_stats_view` | ION memory utilization (enriched) |
+| `disk_stats_view` | Disk I/O and usage |
+| `file_system_stats` | Filesystem utilization per partition |
+| `temperature_stats_view` | Device temperature readings |
+| `ssd_smart_stats` | SSD health (SMART data) |
+
+### Security
+
+| Table | Description |
+|---|---|
+| `security_policy_stats` | Security policy hit counts per rule |
+| `securitypolicyruledo` | Security policy rule configuration |
+| `securityzonedo` | Security zone definitions |
+| `urlcategorydo` | URL category definitions used in policy |
+| `urlcustomcategorydo` | Custom URL categories defined by tenant |
+| `radius_stats` | RADIUS authentication stats |
+| `radius_client_stats` | Per-client RADIUS stats |
+
+### QoS & Performance Policy
+
+| Table | Description |
+|---|---|
+| `qos_stats` | QoS queue stats — drops, bytes per traffic class |
+| `performance_policy_stats` | Performance policy enforcement stats |
+
+### Configuration & Inventory (DO tables)
+
+| Table | Description |
+|---|---|
+| `sitedo` | Site list — name, address, coordinates, admin state |
+| `elementdo` | ION device inventory — model, SW version, connected state |
+| `interfacedo` | Interface config — type, IP, VLAN |
+| `waninterfacedo` | WAN interface config — carrier, bandwidth, labels |
 | `wannetworkdo` | WAN network definitions |
-| `tenantdo` | Tenant configuration |
+| `lannetworkdo` | LAN network definitions |
 | `appdefdo` | Application definition library |
-| `policyruledo` | Network policy rules |
+| `networkpolicyruledo` | Network policy rules |
+| `networkpolicysetdo` | Network policy sets |
+| `networkpolicysetstackdo` | Network policy stacks |
+| `policyruledo` | General policy rules |
+| `perfmgmtpolicyruledo` | Performance management policy rules |
+| `perfmgmtpolicysetdo` | Performance management policy sets |
+| `perfmgmtthresholdprofiledo` | Thresholds for performance alerts |
+| `prioritypolicyruledo` | Priority/QoS policy rules |
+| `prioritypolicysetdo` | Priority policy sets |
+| `serviceendpointdo` | Service endpoint definitions |
+| `probeconfigdo` | Probe configuration |
+| `anynetlinkdo` | AnyNet link configuration |
+| `vpnlinkdo` | VPN link configuration |
+| `waninterfacelabeldo` | WAN interface labels |
+| `networkcontextdo` | Network context definitions |
+| `site_config_view` | Joined site configuration view |
+| `entity_sitedo_view` | Entity-to-site mapping |
+| `auditlogdo` | Audit log — who changed what and when |
+| `eventcorrelationpolicyruledo` | Event correlation rules |
+| `tenantlicenseskudo` | License SKU allocation per tenant |
+| `prismaaccessconfigdo` | Prisma Access integration config |
+| `sdwanappconfigdo` | SD-WAN app-specific config |
+| `elementimagedo` | Available ION software images |
+| `saseconnectiondo` | SASE connection config |
+| `extensiondo` | Extension/plugin configuration |
 
-### AI / Analytics
+### AI, Analytics & Forecasting
 
 | Table | Description |
 |---|---|
-| `an_sdwan_predictions` | AI/ML-generated SD-WAN predictions |
-| `capacity_forecast` | WAN capacity forecasts |
-| `fc_predictions` | Flow classifier predictions |
-| `sdwan_copilot_*` | Copilot RAG knowledge base |
-| `data_explore_llm_prompts` | Stored LLM prompt history |
+| `an_sdwan_predictions` | AI-generated predictions (path degradation, outage risk) |
+| `capacity_forecast` | WAN capacity forecasts per circuit |
+| `aiops_cp_stats` | AIOps capacity planning metrics |
+| `topology_counts` | Network topology element counts over time |
+
+### Tables to Exclude (Internal / Not Customer-Facing)
+
+| Pattern | Reason |
+|---|---|
+| `i_*` (~35 tables) | Internal ingestion pipeline staging tables |
+| `*_csv` tables | CSV export duplicates of DO tables |
+| `*_n` tables (`sitedo_n`, `elementdo_n`, etc.) | Normalized internal copies |
+| `datamigration_failed_records`, `failed_records` | Internal ETL error logs |
+| `machine_tenant_mapping`, `machinedo` | Internal infrastructure mapping |
+| `tenant_shard_map` | Internal sharding configuration |
+| `sdwan_copilot_*` | Internal RAG knowledge base for Copilot AI |
+| `sdwan_troubleshooting_agent_spans` | Internal AI agent tracing |
+| `data_explore_llm_prompts` | Internal LLM prompt history |
+| `fc_hyperparameters`, `fc_metrics`, `fc_predictions` | Internal ML model data |
+| `timezones` | Internal reference table |
+| `manual_data_lookup` | Internal ops lookup |
+| `sdwan_flowcount_limits` | Internal capacity enforcement |
+| `tenantdo` | Multi-tenant directory — restrict; exposes all tenants |
+| `copilot_request_details` | Internal Copilot telemetry |
+| `deviceidconfigdo`, `deviceidipmappingdo` | Internal device identity mapping |
+| `threattenantversiondo` | Internal threat profile versioning |
 
 ---
 
