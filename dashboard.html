@@ -34,30 +34,33 @@ canvas{max-height:230px}
 #nameFilter{min-width:220px}
 .result-count{font-size:11px;color:#94a3b8;margin-left:auto;font-weight:500}
 
-table{width:100%;border-collapse:collapse;table-layout:fixed}
-thead th{background:#0f172a;color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;text-align:left;position:sticky;top:0;z-index:2;border-bottom:1px solid #334155;white-space:nowrap;cursor:pointer;user-select:none}
+table{border-collapse:collapse;table-layout:fixed;min-width:100%}
+thead th{background:#0f172a;color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;text-align:left;position:sticky;top:0;z-index:2;border-bottom:1px solid #334155;white-space:nowrap;cursor:pointer;user-select:none;overflow:hidden;position:relative}
 thead th:hover{color:#e2e8f0;background:#1e293b}
 thead th.sorted-asc::after{content:" ▲";color:#3b82f6}
 thead th.sorted-desc::after{content:" ▼";color:#3b82f6}
 thead th.sorted-asc,thead th.sorted-desc{color:#e2e8f0}
 tbody tr{border-bottom:1px solid #0f172a;transition:background .12s}
 tbody tr:hover{background:#334155!important}
-tbody td{padding:7px 10px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis}
+tbody td{padding:7px 10px;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 tbody tr.hidden{display:none}
 tbody tr.evt-critical{background:rgba(239,68,68,.06)!important}
 tbody tr.evt-high{background:rgba(245,158,11,.04)!important}
 
-th:nth-child(1){width:40px}
-th:nth-child(2){width:260px}
-th:nth-child(3){width:75px;text-align:right}
-th:nth-child(4){width:160px}
-th:nth-child(5){width:220px}
-th:nth-child(6){width:100px;text-align:right}
-th:nth-child(7){width:85px;text-align:right}
-td:nth-child(3),td:nth-child(6),td:nth-child(7){text-align:right}
+th:nth-child(1){width:44px;min-width:44px}
+th:nth-child(2){width:280px;min-width:120px}
+th:nth-child(3){width:130px;min-width:80px}
+th:nth-child(4){width:90px;min-width:60px;text-align:right}
+th:nth-child(5){width:180px;min-width:100px}
+th:nth-child(6){width:120px;min-width:80px}
+th:nth-child(7){width:110px;min-width:80px;text-align:right}
+th:nth-child(8){width:90px;min-width:60px;text-align:right}
+td:nth-child(4),td:nth-child(7),td:nth-child(8){text-align:right}
+.col-resize{position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;z-index:3;background:transparent}
+.col-resize:hover,.col-resize.dragging{background:#3b82f6}
 
 .rank{color:#475569;font-size:11px}
-.tname-main{font-weight:500;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
+.tname-main{font-weight:500;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tname-sub{display:flex;align-items:center;gap:5px;margin-top:2px}
 .tname-sub code{background:#0f172a;padding:1px 5px;border-radius:3px;font-size:10px;color:#7dd3fc}
 .num{font-weight:600;color:#e2e8f0}
@@ -163,7 +166,7 @@ td:nth-child(3),td:nth-child(6),td:nth-child(7){text-align:right}
       <span class="result-count" id="resultCount"></span>
     </div>
 
-    <div style="max-height:700px;overflow-y:auto">
+    <div style="max-height:700px;overflow:auto">
       <table id="mainTable">
         <thead>
           <tr>
@@ -454,6 +457,36 @@ function showDetail(idx) {
 function closeModal(){document.getElementById('modal').classList.remove('active');}
 
 applyFilters();
+
+// ── Column resize ─────────────────────────────────────────────────────────
+(function initColResize() {
+  const table = document.getElementById('mainTable');
+  const ths = table.querySelectorAll('thead th');
+  ths.forEach((th, i) => {
+    if (i === ths.length - 1) return; // skip last col
+    const handle = document.createElement('div');
+    handle.className = 'col-resize';
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      handle.classList.add('dragging');
+      const startX = e.pageX;
+      const startW = th.offsetWidth;
+      const onMove = ev => {
+        const newW = Math.max(parseInt(th.style.minWidth)||50, startW + ev.pageX - startX);
+        th.style.width = newW + 'px';
+      };
+      const onUp = () => {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    th.appendChild(handle);
+  });
+})();
 </script>
 
 </body>
