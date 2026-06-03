@@ -169,11 +169,12 @@ td:nth-child(3),td:nth-child(6),td:nth-child(7){text-align:right}
           <tr>
             <th onclick="sortTable(0)">#</th>
             <th onclick="sortTable(1)">Tenant Name</th>
-            <th onclick="sortTable(2)" style="text-align:right">IONs</th>
-            <th onclick="sortTable(3)">Connectivity %</th>
-            <th onclick="sortTable(4)">SW Versions</th>
-            <th onclick="sortTable(5)" style="text-align:right">Events (30d)</th>
-            <th onclick="sortTable(6)" style="text-align:right">Critical</th>
+            <th onclick="sortTable(2)">TSG ID</th>
+            <th onclick="sortTable(3)" style="text-align:right">IONs</th>
+            <th onclick="sortTable(4)">Connectivity %</th>
+            <th onclick="sortTable(5)">SW Versions</th>
+            <th onclick="sortTable(6)" style="text-align:right">Events (30d)</th>
+            <th onclick="sortTable(7)" style="text-align:right">Critical</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -321,8 +322,8 @@ function renderTable() {
       <td>
         <div class="tname-main" title="${t.tenant_name}">${tn}</div>
         <div class="tname-sub"><code>${t.tenant_id}</code><span style="font-size:9px;color:#475569">${t.region.toUpperCase()}</span></div>
-        <div class="tname-sub" style="margin-top:1px"><span style="font-size:9px;color:#475569">TSG:</span> <code style="font-size:9px;color:#94a3b8">${t.tsg_id}</code></div>
       </td>
+      <td><code style="font-size:11px;color:#94a3b8">${t.tsg_id}</code></td>
       <td class="num">${t.total_ions.toLocaleString()}</td>
       <td>
         <div class="bar-wrap"><div class="bar" style="width:${bw}%;background:${bc}"></div></div>
@@ -374,6 +375,7 @@ function applyFilters() {
 const SORT_FNS = [
   t=>ALL_TENANTS.indexOf(t),
   t=>t.tenant_name.toLowerCase(),
+  t=>t.tsg_id,
   t=>t.total_ions,
   t=>t.pct_connected,
   t=>t.top_version.toLowerCase(),
@@ -383,7 +385,7 @@ const SORT_FNS = [
 
 function sortTable(col) {
   if(sortCol===col) sortDir=-sortDir;
-  else{ sortCol=col; sortDir=col===0||col===1?1:-1; }
+  else{ sortCol=col; sortDir=col<=2?1:-1; }
   applySort(false);
 }
 
