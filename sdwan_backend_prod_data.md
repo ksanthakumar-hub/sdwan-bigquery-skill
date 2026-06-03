@@ -324,7 +324,7 @@ PYEOF
 | `timezones` | Internal reference table |
 | `manual_data_lookup` | Internal ops lookup |
 | `sdwan_flowcount_limits` | Internal capacity enforcement |
-| `tenantdo` | Multi-tenant directory — restrict; exposes all tenants |
+| `tenantdo` | Multi-tenant directory — use ONLY as a filter source (JOIN or subquery) to exclude internal/inactive tenants. Never SELECT * or return raw rows from it — it exposes all tenant metadata. |
 | `copilot_request_details` | Internal Copilot telemetry |
 | `deviceidconfigdo`, `deviceidipmappingdo` | Internal device identity mapping |
 | `threattenantversiondo` | Internal threat profile versioning |
@@ -350,6 +350,42 @@ WHERE tenant_id = '1468'
 - Always filter by `tenant_id` and `event_time` at minimum
 
 **tenant_id is a STRING** — always quote it: `tenant_id = '1468'` not `tenant_id = 1468`
+
+### Excluding internal tenants (REQUIRED for all fleet-wide queries)
+
+**Never include internal/support tenants** (`tenant_type = 'INTERNAL'`) in any fleet-wide analysis, dashboards, or aggregations. Internal tenants are Palo Alto Networks lab, demo, QA, and CS accounts — including them skews counts and leaks internal infrastructure into customer-facing reports.
+
+`tenantdo` fields that identify non-customer accounts:
+- `tenant_type = 'INTERNAL'` — PA Networks internal accounts (labs, CS, QA, demo)
+- `is_support = TRUE` — support/TAC access tenants
+- `inactive = TRUE` — deactivated tenants (exclude from active fleet counts)
+- `disabled = TRUE` — administratively disabled tenants
+
+**Pattern A — exclude when joining `tenantdo` (preferred for fleet-wide queries):**
+```sql
+FROM `pa-sase-insights-prod-01.sdwan_dataset.elementdo` e
+JOIN `pa-sase-insights-prod-01.sdwan_dataset.tenantdo` t
+  ON e.tenant_id = t.tenant_id
+WHERE t.tenant_type != 'INTERNAL'
+  AND t.is_support = FALSE
+  AND t.inactive = FALSE
+  AND t.disabled = FALSE
+```
+
+**Pattern B — subquery exclusion (for stats tables without a tenantdo join):**
+```sql
+WHERE tenant_id NOT IN (
+  SELECT tenant_id
+  FROM `pa-sase-insights-prod-01.sdwan_dataset.tenantdo`
+  WHERE tenant_type = 'INTERNAL'
+     OR is_support = TRUE
+     OR inactive = TRUE
+     OR disabled = TRUE
+)
+AND event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+```
+
+> If the user explicitly asks for internal tenants (e.g. "show me the QA tenant") you may query them — but note in your response that they are internal accounts.
 
 ---
 
