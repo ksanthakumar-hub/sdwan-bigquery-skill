@@ -485,3 +485,85 @@ while page_token:
     url = f"https://bigquery.googleapis.com/bigquery/v2/projects/pa-sase-insights-prod-01/queries/{job_id}?pageToken={page_token}&maxResults=10000"
     # fetch next page...
 ```
+
+---
+
+## ION Fleet Dashboard
+
+A live BigQuery-backed web dashboard for fleet-wide monitoring. Deployed at `http://10.9.224.231` (lab server).
+
+### Files
+
+| File | Description |
+|---|---|
+| `dashboard.html` | Single-file dashboard — all HTML/CSS/JS. Deploy to `/var/www/sdwan/index.html` |
+| `bq_proxy.py` | Stdlib Python HTTP proxy on port 8082. Forwards browser BQ requests with a Bearer token |
+| `push_gcp_token.sh` | One-command helper to push a fresh local GCP token to the proxy |
+
+### Architecture
+
+```
+Browser → http://10.9.224.231/   (nginx serving dashboard.html)
+Browser → http://10.9.224.231:8082/bq   (bq_proxy.py → BigQuery REST API)
+```
+
+The proxy (`bq_proxy.py`) handles auth so the browser never holds a GCP token longer than a session. Token priority:
+1. Token pasted into the browser banner (stored in `sessionStorage` only)
+2. `~/.bq_token` file on the server (pushed via `push_gcp_token.sh`, valid 55 min)
+3. `gcloud auth application-default` / `gcloud auth print-access-token` (fallback)
+
+### Deploying updates
+
+```bash
+# Copy dashboard to server
+sshpass -p 'lab123' scp dashboard.html ubuntu@10.9.224.231:/home/ubuntu/index.html
+sshpass -p 'lab123' ssh ubuntu@10.9.224.231 'sudo cp /home/ubuntu/index.html /var/www/sdwan/index.html'
+
+# Copy proxy (then restart it)
+sshpass -p 'lab123' scp bq_proxy.py ubuntu@10.9.224.231:/home/ubuntu/bq_proxy.py
+sshpass -p 'lab123' ssh ubuntu@10.9.224.231 'pkill -f bq_proxy.py; nohup python3 /home/ubuntu/bq_proxy.py > /home/ubuntu/bq_proxy.log 2>&1 &'
+
+# Refresh GCP token (run whenever dashboard shows token error)
+bash push_gcp_token.sh
+```
+
+### Dashboard widgets
+
+All widgets query live from BigQuery. No static data is embedded in the page.
+
+| Widget | Data source | Time-range aware |
+|---|---|---|
+| KPI bar — tenant count, ION count, connected/disconnected, fleet % | `elementdo JOIN tenantdo` | No (current inventory state) |
+| KPI bar — Events count | `events` | **Yes** — reflects selected date range |
+| Top 10 customers by ION count | `elementdo JOIN tenantdo` | No |
+| SW version distribution | `elementdo JOIN tenantdo` | No |
+| Connectivity % by tenant | `elementdo JOIN tenantdo` | No |
+| Incidents daily trend + top codes | `sdwan_incidents_view` | **Yes** |
+| HW model summary | `elementdo JOIN tenantdo` | No |
+| Customer tenant fleet table | `elementdo JOIN tenantdo` + `events` | Events column is **Yes** |
+| Tenant detail modal — incidents | `sdwan_incidents_view` (per tenant, on click) | Last 90 days |
+
+### Key BQ schema notes learned during development
+
+| Table | Note |
+|---|---|
+| `tenantdo` | Column is `name` (not `tenant_name`). Use `tenant_service_group` as string key for `sdwan_incidents_view` |
+| `events` | Partition/time column is `time` (not `event_time`). Severity values: `critical`, `major`, `minor` |
+| `sdwan_incidents_view` | Partition column is `raised_time` (not `event_time`). Filter on `tenant_service_group`, not `tenant_id`. Severity values: `critical`, `high`, `medium`, `low` |
+| `elementdo` | `connected` is BOOL. No time partition — represents current device state |
+
+### Internal tenant exclusion (required on all fleet queries)
+
+```sql
+-- Pattern A: JOIN-based (elementdo queries)
+WHERE t.tenant_type != 'INTERNAL'
+  AND t.is_support = FALSE
+  AND t.inactive = FALSE
+  AND t.disabled = FALSE
+
+-- Pattern B: subquery (incidents/events without tenantdo join)
+AND tenant_service_group NOT IN (
+  SELECT CAST(tenant_id AS STRING) FROM tenantdo
+  WHERE tenant_type = 'INTERNAL' OR is_support = TRUE OR inactive = TRUE OR disabled = TRUE
+)
+```
